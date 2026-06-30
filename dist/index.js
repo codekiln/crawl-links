@@ -130,7 +130,11 @@ function transformLink(src, target, opts) {
         }
         const parts = slug2.split("/");
         const fileName = parts.at(-1);
-        return targetCanonical === fileName;
+        if (targetCanonical === fileName) {
+          return true;
+        }
+        const folderName = parts.at(-2);
+        return fileName === "index" && folderName === targetCanonical;
       });
       if (matchingFileNames.length === 1) {
         const matchedSlug = matchingFileNames[0];
@@ -142,7 +146,7 @@ function transformLink(src, target, opts) {
 }
 function slugifyPath(s2) {
   return s2.split("/").map(
-    (segment) => segment.replace(/\s/g, "-").replace(/&/g, "-and-").replace(/%/g, "-percent").replace(/\?/g, "").replace(/#/g, "").toLowerCase()
+    (segment) => segment.replace(/\s/g, "-").replace(/&/g, "-and-").replace(/%/g, "-percent").replace(/\?/g, "").replace(/#/g, "").replace(/[<>:"|*]/g, "").toLowerCase()
   ).join("/").replace(/\/$/, "");
 }
 function _sluggify(s2) {
