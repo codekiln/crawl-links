@@ -54,7 +54,7 @@
   },
   "dependencies": {
     "@quartz-community/types": "^1.0.0",
-    "@quartz-community/utils": "^1.0.0"
+    "@quartz-community/utils": "github:codekiln/utils#ded180e3ed4f5739da245c7fc242a0a11e5c07aa"
   },
   "devDependencies": {
     "@types/hast": "^3.0.4",
