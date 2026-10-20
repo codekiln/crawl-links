@@ -71,18 +71,31 @@ export const CrawlLinks: QuartzTransformerPlugin<Partial<CrawlLinksOptions>> = (
               if (canonical.endsWith("/")) canonical += "index";
               return decodeURIComponent(stripSlashes(canonical, true)) as FullSlug;
             };
+            const exists = (full: FullSlug): boolean =>
+              ctx.allSlugs.includes(full) || ctx.allSlugs.includes(`${full}/index` as FullSlug);
+            // A link to "Brent Benson.md" from inside "People/Brent Benson/" names
+            // the folder note, which Quartz serves as the folder
+            // ("people/brent-benson/"), so point the link at the folder.
+            const toFolderNote = (relative: RelativeURL): RelativeURL | null => {
+              const parts = toFullSlug(relative).split("/");
+              if (parts.length < 2 || parts.at(-1) !== parts.at(-2)) return null;
+              if (!ctx.allSlugs.includes(`${parts.slice(0, -1).join("/")}/index` as FullSlug)) {
+                return null;
+              }
+              const [path, anchor] = splitAnchor(relative);
+              return (path.replace(/[^/]*$/, "") + anchor) as RelativeURL;
+            };
             const resolveLink = (target: string): RelativeURL => {
               if (opts.markdownLinkResolution !== "relative") {
                 return transformLink(fileSlug, target, transformOptions);
               }
               const relative = transformLink(fileSlug, target, transformOptions);
+              if (exists(toFullSlug(relative))) return relative;
+              const folderNote = toFolderNote(relative);
+              if (folderNote) return folderNote;
               if (target.startsWith("./") || target.startsWith("../")) {
                 return relative;
               }
-              const full = toFullSlug(relative);
-              const exists =
-                ctx.allSlugs.includes(full) || ctx.allSlugs.includes(`${full}/index` as FullSlug);
-              if (exists) return relative;
               return transformLink(fileSlug, target, { ...transformOptions, strategy: "shortest" });
             };
 

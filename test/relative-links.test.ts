@@ -42,6 +42,15 @@ describe("relative strategy", () => {
     expect(link.properties["data-slug"]).toBe("apps/gallery/notes");
   });
 
+  it("resolves a link to a folder note from inside its folder", () => {
+    const link = linkFrom(
+      "people/brent-benson/apps/browser/index",
+      "../../Brent%20Benson.md",
+      allSlugs,
+    );
+    expect(link.properties["data-slug"]).toBe("people/brent-benson/index");
+  });
+
   it("falls back to shortest for a full-path wikilink", () => {
     const link = linkFrom(page, "Meta/Entities/Person", allSlugs);
     expect(link.properties["data-slug"]).toBe("meta/entities/person");
