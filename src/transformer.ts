@@ -59,6 +59,33 @@ export const CrawlLinks: QuartzTransformerPlugin<Partial<CrawlLinksOptions>> = (
               allSlugs: ctx.allSlugs,
             };
 
+            // Under "relative", a link that starts with ./ or ../ resolves
+            // against this page's folder, as GitHub and Obsidian resolve it.
+            // Any other link resolves against this page's folder when a page
+            // exists there, and otherwise falls back to "shortest", so
+            // wikilinks such as [[Meta/Entities/Person]] or [[Person]] keep
+            // working on pages in subfolders.
+            const toFullSlug = (dest: string): FullSlug => {
+              const url = new URL(dest, "https://base.com/" + stripSlashes(curSlug, true));
+              let canonical = splitAnchor(url.pathname)[0];
+              if (canonical.endsWith("/")) canonical += "index";
+              return decodeURIComponent(stripSlashes(canonical, true)) as FullSlug;
+            };
+            const resolveLink = (target: string): RelativeURL => {
+              if (opts.markdownLinkResolution !== "relative") {
+                return transformLink(fileSlug, target, transformOptions);
+              }
+              const relative = transformLink(fileSlug, target, transformOptions);
+              if (target.startsWith("./") || target.startsWith("../")) {
+                return relative;
+              }
+              const full = toFullSlug(relative);
+              const exists =
+                ctx.allSlugs.includes(full) || ctx.allSlugs.includes(`${full}/index` as FullSlug);
+              if (exists) return relative;
+              return transformLink(fileSlug, target, { ...transformOptions, strategy: "shortest" });
+            };
+
             visit(tree, "element", (node: Element) => {
               // rewrite all links
               if (
@@ -118,7 +145,7 @@ export const CrawlLinks: QuartzTransformerPlugin<Partial<CrawlLinksOptions>> = (
                   isAbsoluteUrlWithOptions(dest, { httpOnly: false }) || dest.startsWith("#")
                 );
                 if (isInternal) {
-                  dest = node.properties.href = transformLink(fileSlug, dest, transformOptions);
+                  dest = node.properties.href = resolveLink(dest);
 
                   // url.resolve is considered legacy
                   // WHATWG equivalent https://nodejs.dev/en/api/v18/url/#urlresolvefrom-to
@@ -164,7 +191,7 @@ export const CrawlLinks: QuartzTransformerPlugin<Partial<CrawlLinksOptions>> = (
 
                 if (!isAbsoluteUrlWithOptions(node.properties.src, { httpOnly: false })) {
                   let dest = node.properties.src as RelativeURL;
-                  dest = node.properties.src = transformLink(fileSlug, dest, transformOptions);
+                  dest = node.properties.src = resolveLink(dest);
                   node.properties.src = dest;
                 }
               }
@@ -174,7 +201,7 @@ export const CrawlLinks: QuartzTransformerPlugin<Partial<CrawlLinksOptions>> = (
             for (const fmLink of frontmatterLinks) {
               const [targetRaw] = splitAnchor(fmLink);
               if (!targetRaw) continue;
-              const dest = transformLink(fileSlug, targetRaw, transformOptions);
+              const dest = resolveLink(targetRaw);
               const url = new URL(dest, "https://base.com/" + stripSlashes(curSlug, true));
               const [canonicalRaw] = splitAnchor(url.pathname);
               let canonical = canonicalRaw;
